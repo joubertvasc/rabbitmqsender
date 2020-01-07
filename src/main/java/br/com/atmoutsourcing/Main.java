@@ -37,6 +37,9 @@ public class Main {
         String type = DIRECT;
         int attempts = 5;
         int port = 5672;
+        boolean durable = true;
+        boolean exclusive = false;
+        boolean autoDelete = true;
 
         for (String arg : args) {
             String[] param = arg.split("=");
@@ -70,6 +73,15 @@ public class Main {
                     case "-q":
                         queue = param[1].trim();
                         break;
+                    case "-du":
+                        durable = param[1].trim().equalsIgnoreCase("true");
+                        break;
+                    case "-ex":
+                        exclusive = param[1].trim().equalsIgnoreCase("true");
+                        break;
+                    case "-ad":
+                        autoDelete = param[1].trim().equalsIgnoreCase("true");
+                        break;
                     case "-a":
                         try {
                             attempts = Integer.valueOf(param[1].trim());
@@ -98,7 +110,7 @@ public class Main {
         } else if (attempts < 1 || attempts > 30 || port < 1024) {
             showUsage();
         } else {
-            sendMessage(url, port, username, password, vhost, exchange, routingKey, queue, message, type, attempts);
+            sendMessage(url, port, username, password, vhost, exchange, routingKey, queue, message, type, attempts, durable, exclusive, autoDelete);
         }
     }
 
@@ -120,12 +132,15 @@ public class Main {
         System.out.println("-t (optional) message type. Default is " + DIRECT + ". Options are: " + DIRECT + ", " + FANOUT + " or " + TOPIC + ". Headers is not supported.");
         System.out.println("-n (optional) Port Number to connect. Default is 5672 and must be greater than 1024.");
         System.out.println("-a (optional) Number of connection attempts. Default is 5 and must be an integer value between 1 and 30.");
+        System.out.println("-du (optional) Set the Durable parameter, default true and must be true or false.");
+        System.out.println("-ex (optional) Set the Exclusive parameter, default false and must be true or false.");
+        System.out.println("-ad (optional) Set the Auto_Delete parameter, default true and must be true or false.");
         System.out.println("");
     }
 
     private static void sendMessage(String hostName, int portNumber, String userName, String password, String virtualHost,
                                     String exchangeName, String routingKey, String queueName, String message,
-                                    String exchangeType, int attempts) {
+                                    String exchangeType, int attempts, boolean durable, boolean exclusive, boolean autoDelete) {
         ConnectionFactory factory = new ConnectionFactory();
         factory.setUsername(userName);
         factory.setPassword(password);
@@ -156,7 +171,7 @@ public class Main {
                 Channel channel = conn.createChannel();
                 try {
                     channel.exchangeDeclare(exchangeName, exchangeType, false);
-                    channel.queueDeclare(queueName.equals("") ? routingKey : queueName, true, false, false, null);
+                    channel.queueDeclare(queueName.equals("") ? routingKey : queueName, durable, exclusive, autoDelete, null);
                     channel.queueBind(queueName, exchangeName, routingKey.equals("") ? queueName : routingKey);
 
                     byte[] messageBodyBytes = message.getBytes();
